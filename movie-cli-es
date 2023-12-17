@@ -37,6 +37,7 @@ die() {
     exit 1
 }
 
+# aun no funciona esta funcion tratare de terminarla
 downloads() {
     local title_m3u8
     local m3u8_part1
