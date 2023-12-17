@@ -6,8 +6,22 @@ Un cli para navegar y ver anime, peliculas, kdramas (solo Y con amigos).
 
 Instalar dependencias
 
+Para archlinux y derivadas
+
 ```sh
 sudo pacman -S ffmpeg curl yt-dpl mpv --needed
+```
+
+Para debian y ubuntu
+
+```sh
+sudo apt-get install ffmpeg curl mpv
+```
+
+Para fedora
+
+```sh
+sudo dnf install ffmpeg curl mpv
 ```
 
 ```sh
@@ -17,8 +31,6 @@ rm -rf movi-cli-es
 ```
 
 ## Desinstalar
-
-- Linux:
 
 ```sh
 sudo rm "/usr/local/bin/movie-cli-es"
