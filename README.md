@@ -1,5 +1,5 @@
 <h1 align="center">
-Un cli para navegar y ver anime, peliculas, kdramas (solo Y con amigos).
+Un cli para navegar y ver anime, peliculas, doramas (solo Y con amigos).
 </h1>
 
 ### Instalar desde el código fuente
