@@ -135,7 +135,7 @@ get_video_links() {
             done
             ;;
         *)
-            mapfile -t video_links < <(curl -s "$1" | grep data-video | awk '!/dood|azipcdn|pelisplay/' | cut -d\" -f2 | grep https)
+            mapfile -t video_links < <(curl -s "$1" | grep data-video | awk '!/dood|azipcdn|pelisplay/' | cut -d\" -f2 | grep https | sort -u)
             ;;
     esac
 
@@ -150,7 +150,9 @@ replay(){
         if mpv --title="$title" "$link";
         then
             history save "$result_url"
-            echo "$result_url"
+            break
+        else
+            break
         fi
     done
 }
