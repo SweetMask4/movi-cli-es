@@ -12,11 +12,11 @@ anime_base_url="https://monoschinos2.com"
 doramas_base_url="https://www.doramasyt.com"
 spn_search_endpoint="/buscar?q="
 eng_search_endpoint="/search.html?keyword="
-dir="$HOME/.cache/movies"
+dir="$HOME/.cache/movi"
 state_file="$dir/state"
 bookmarks="$dir/bookmarks"
 history="$dir/history"
-dir_downloads="$HOME/Downloads/movies"
+dir_downloads="$HOME/Downloads/movi"
 
 [ ! -d "$dir" ] && mkdir "$dir"
 

@@ -13,7 +13,7 @@ sudo pacman -S ffmpeg curl yt-dpl mpv --needed
 ```sh
 git clone "https://github.com/SweetMask4/movi-cli-es.git"
 sudo cp movi-cli-es/movi-cli-es /usr/local/bin
-rm -rf ani-cli
+rm -rf movi-cli-es
 ```
 
 ## Desinstalar
