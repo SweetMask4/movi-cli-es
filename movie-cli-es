@@ -68,7 +68,7 @@ get_links(){
         *ver/dorama*) get_url=$(printf "%s" "$1" | sed 's#^#https://www.doramasyt.com/#' | sed 's#ver/dorama#ver#' | tr ' ' '-') ;;
         *anime*) get_url=$(printf "%s" "$1" | sed 's#^#https://monoschinos2.com/#' | tr ' ' '-') ;;
         *dorama*) get_url=$(printf "%s" "$1" | sed 's#^#https://www.doramasyt.com/#' | tr ' ' '-') ;;
-        *) get_url=$(printf "%s" "$others_base_url$1" | tr ' ' '-') ;;
+        *episodio*|*/0-9/*|*serie*) get_url=$(printf "%s" "$others_base_url$1" | tr ' ' '-') ;;
     esac
     echo "$get_url"
 }
@@ -148,7 +148,7 @@ get_video_links() {
     for m3u8 in "${video_links[@]}"; do
 
         bool=false
-        yt-dlp -s "$m3u8" > /dev/null || bool=true
+        yt-dlp -s "$m3u8" > /dev/null 2>&1 || bool=true
 
         if [ "$bool" = false ]; then
             video_links_check=$m3u8
@@ -176,15 +176,20 @@ next(){
     title=$(echo "$1" | cut -d '/' -f5 | tr -d '0-9' | cut -d '-' -f 1)
     case "$1" in
         *monoschinos2*) next_episode=$(curl -s -A "$agent" "$1" | grep "$title" | cut -d\" -f 2 | uniq -d ) ;;
-        *cuevana3*) cuevana3_link=$(curl -s -A "$agent" "$1" | grep -i Siguiente | cut -d\" -f 2)
+        *cuevana3*) cuevana3_link=$(curl -s -A "$agent" "$1" | grep "$title" | grep -i Siguiente | cut -d\" -f 2)
             next_episode=$(get_links "$cuevana3_link") ;;
         *doramasyt*) next_episode=$(curl -s -A "$agent" "$1" | grep Siguiente | cut -d\" -f 4 ) ;;
     esac
     result_url=$next_episode
-    titleG="$next_episode"
-    links=$(get_video_links "$next_episode")
-    [ -n "$links" ] || die "no hay enlaces disponible"
-    replay "$links"
+    if [ -n "$result_url" ];
+    then
+        titleG="$next_episode"
+        links=$(get_video_links "$next_episode")
+        [ -n "$links" ] || die "no hay enlaces disponible"
+        replay "$links"
+    else
+        change_episode
+    fi
 }
 
 change_episode(){
