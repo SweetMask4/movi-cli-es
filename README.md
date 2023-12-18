@@ -33,5 +33,5 @@ rm -rf movi-cli-es
 ## Desinstalar
 
 ```sh
-sudo rm "/usr/local/bin/movie-cli-es"
+sudo rm "/usr/local/bin/movi-cli-es"
 ```
