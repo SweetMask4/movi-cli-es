@@ -168,19 +168,21 @@ get_video_links() {
 }
 
 replay() {
+    url="$1"
     local title
     title=$(echo "$titleG" | cut -d '/' -f 5 | tr '-' ' ')
 
     case "$player_function" in
         mpv*) nohup "$player_function" --title="$title" "$1" >/dev/null 2>&1 & ;;
-        android_mpv) nohup am start --user 0 -a android.intent.action.VIEW -d "$1" -n is.xyz.mpv/.MPVActivity >/dev/null 2>&1 & ;;
-        android_vlc) nohup am start --user 0 -a android.intent.action.VIEW -d "$1" -n org.videolan.vlc/org.videolan.vlc.gui.video.VideoPlayerActivity -e "title" "$title" >/dev/null 2>&1 & ;;
+        android_mpv) nohup am start --user 0 -a android.intent.action.VIEW -d "$url" -n is.xyz.mpv/.MPVActivity >/dev/null 2>&1 & ;;
+        android_vlc) nohup am start --user 0 -a android.intent.action.VIEW -d "$url" -n org.videolan.vlc/org.videolan.vlc.gui.video.VideoPlayerActivity -e "title" "$title" >/dev/null 2>&1 & ;;
         flatpak_mpv) flatpak run io.mpv.Mpv --title="$title" "$1" >/dev/null 2>&1 & ;;
         vlc*) nohup "$player_function" "$1" >/dev/null 2>&1 & ;;
         *) nohup "$player_function" "$1" >/dev/null 2>&1 & ;;
     esac
 
     history save "$result_url"
+    last_viewed save "$result_url"
 }
 
 next(){
@@ -237,15 +239,20 @@ play() {
 
 last_viewed(){
     local links
-    if [ -f "$histfile" ];
-    then
-        result_url=$(cat "$histfile")
-        titleG=$(echo "$result_url" | cut -d '/' -f 5 | tr '-' ' ')
-        links=$(get_video_links "$result_url")
-        replay "$links"
-    else
-        die "no hay ultima vez"
-    fi
+
+    case "$1" in
+        'save')
+            echo "$2" > "$histfile" ;;
+        'show') if [ -f "$histfile" ];
+            then
+                result_url=$(cat "$histfile")
+                titleG=$(echo "$result_url" | cut -d '/' -f 5 | tr '-' ' ')
+                links=$(get_video_links "$result_url")
+                play "$links"
+            else
+                die "no hay ultima vez"
+            fi
+    esac
 }
 
 history(){
@@ -304,7 +311,7 @@ menu() {
     while true; do
         case "$choice" in
             "Buscar") main ;;
-            "Último visto") last_viewed ;;
+            "Último visto") last_viewed show ;;
             "Historial") history show ;;
             "Salir") break ;;
             *) die "Opción inválida. Inténtalo de nuevo." ;;
