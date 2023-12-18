@@ -50,7 +50,7 @@ downloads() {
     [ ! -d "$dir_downloads" ] && mkdir "$dir_downloads"
     [ -n "$1" ] || die "No hay enlace"
     title=$(echo "$titleG" | cut -d '/' -f 5 | tr '-' ' ')
-    title_dir=$(echo "$title" | tr -d '0-9')
+    title_dir=$(echo "$title" | tr -d '0-9' | sed 's/episodio//')
     [ ! -d title_dir ] && mkdir "$title_dir"
     yt-dlp "$1" --no-skip-unavailable-fragments --fragment-retries infinite -N 16 -o "$dir_downloads/$title_dir/$title.mp4"
 }
