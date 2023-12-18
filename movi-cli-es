@@ -77,8 +77,7 @@ get_episode() {
     esac
 
 
-    selecte=$(printf "%s" "$anime" "$dorama" "$serie" "$movie" | launcher $'\e[1;35m🎥 Selecciona una opción:\e[0m ' \
-        --preview-window=up:30% --preview 'echo {}')
+    selecte=$(printf "%s" "$anime" "$dorama" "$serie" "$movie" | launcher $'\e[1;35m🎥 Selecciona una opción:\e[0m ')
     if [[ "$selecte" == *"serie"* || "$selecte" == *"episodio"* || "$selecte" == *"ver"* || "$selecte" == *"anime"* ]]; then
         episode_list=$(get_links "$selecte")
         echo "$episode_list"
@@ -278,8 +277,7 @@ main() {
     query=$(printf "%s" "$query" | sed "s| |+|g")
     links=$(search_global "$query")
     [ -n "$links" ] || die "No se encontraron resultados"
-    choice=$(printf "%s" "$links" | launcher $'\e[1;33m🌟 Elige una película, serie o dorama:\e[0m ' \
-        --preview-window=up:20% --preview 'echo {}')
+    choice=$(printf "%s" "$links" | launcher $'\e[1;33m🌟 Elige una película, serie o dorama:\e[0m ')
     get_url=$(get_links "$choice")
     title=$(echo "$get_url" | cut -d '/' -f5 | tr '-' ' ')
     result_url=$(get_episode "$get_url")
