@@ -14,14 +14,42 @@ sudo pacman -S ffmpeg curl yt-dpl mpv --needed
 
 Para debian y ubuntu
 
+paso 1
+
 ```sh
-sudo apt-get install ffmpeg curl mpv
+sudo apt-get install ffmpeg curl mpv python-pip
+```
+
+paso 2
+
+```sh
+python -m pip install -U yt-dlp
 ```
 
 Para fedora
 
+paso 1
+
 ```sh
-sudo dnf install ffmpeg curl mpv
+sudo dnf install ffmpeg curl mpv python-pip
+```
+
+paso 2
+
+```sh
+python -m pip install -U yt-dlp
+```
+
+Para termux
+
+paso 1
+
+```sh
+pkg install curl python-pip
+```
+
+```sh
+python -m pip install -U yt-dlp
 ```
 
 ```sh
