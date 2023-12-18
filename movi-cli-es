@@ -12,11 +12,18 @@ anime_base_url="https://monoschinos2.com"
 doramas_base_url="https://www.doramasyt.com"
 spn_search_endpoint="/buscar?q="
 eng_search_endpoint="/search.html?keyword="
-hist_dir="$HOME/.local/state/movie-cli-es"
-histfile="$hist_dir/movie-hsts"
+hist_dir="$HOME/.local/state/movi-cli-es"
+histfile="$hist_dir/movi-hsts"
 history="$hist_dir/history"
 dir_downloads="$HOME/Downloads/movi"
 agent="Mozilla/5.0 (Windows NT 6.1; Win64; rv:109.0) Gecko/20100101 Firefox/109.0"
+
+
+case "$(uname -a)" in
+    *ndroid*) player_function="android_mpv" ;;     # Android OS (termux)
+    *MINGW* | *WSL2*) player_function="mpv.exe" ;; # Windows OS
+    *) player_function="mpv" ;;                    # Linux OS
+esac
 
 [ ! -d "$hist_dir" ] && mkdir -p "$hist_dir"
 
@@ -81,6 +88,7 @@ get_episode() {
             serie=$(curl -s -A "$agent" "$1" | grep episodio | grep "$title" | cut -d\" -f 2 | tr '-' ' ') ;;
         *pelicula*|*) movie=$1 ;;
     esac
+
 
     selecte=$(printf "%s" "$anime" "$dorama" "$serie" "$movie" | launcher $'\e[1;35m🎥 Selecciona una opción:\e[0m ' \
         --preview-window=up:30% --preview 'echo {}')
@@ -160,19 +168,26 @@ get_video_links() {
 }
 
 replay() {
-    local link
     local title
     title=$(echo "$titleG" | cut -d '/' -f 5 | tr '-' ' ')
-    if nohup mpv --title="$title" "$1" >/dev/null 2>&1 &
-    then
-        history save "$result_url"
-    fi
+
+    case "$player_function" in
+        mpv*) nohup "$player_function" --title="$title" "$1" >/dev/null 2>&1 & ;;
+        android_mpv) nohup am start --user 0 -a android.intent.action.VIEW -d "$1" -n is.xyz.mpv/.MPVActivity >/dev/null 2>&1 & ;;
+        android_vlc) nohup am start --user 0 -a android.intent.action.VIEW -d "$1" -n org.videolan.vlc/org.videolan.vlc.gui.video.VideoPlayerActivity -e "title" "$title" >/dev/null 2>&1 & ;;
+        flatpak_mpv) flatpak run io.mpv.Mpv --title="$title" "$1" >/dev/null 2>&1 & ;;
+        vlc*) nohup "$player_function" "$1" >/dev/null 2>&1 & ;;
+        *) nohup "$player_function" "$1" >/dev/null 2>&1 & ;;
+    esac
+
+    history save "$result_url"
 }
 
 next(){
     local video_links
     local title
     local links
+
     title=$(echo "$1" | cut -d '/' -f5 | tr -d '0-9' | cut -d '-' -f 1)
     case "$1" in
         *monoschinos2*) next_episode=$(curl -s -A "$agent" "$1" | grep "$title" | cut -d\" -f 2 | uniq -d ) ;;
@@ -194,6 +209,7 @@ next(){
 
 change_episode(){
     local links
+
     result_url=$(get_episode "$get_url")
     links=$(get_video_links "$result_url")
     titleG=$result_url
@@ -204,7 +220,8 @@ change_episode(){
 play() {
     local options=("Siguiente" "Reproducir" "Descargar" "Cambiar episodio" "Salir")
     local choice
-    replay "${@}"
+
+    replay "$1"
     while true; do
         title=$(echo "$titleG" | cut -d '/' -f 5 | tr '-' ' ')
         choice=$(printf '%s\n' "${options[@]}" | launcher $'\e[1;33m🎬 Reproduciendo '"$title"$' :\e[0m ')
@@ -236,6 +253,7 @@ history(){
     local doramas
     local others
     local choice
+
     case "$1" in
         'save') if ! grep -Fxq "$2" "$history";
             then
@@ -261,7 +279,7 @@ main() {
     local choice
     local title
     local links
-    clear
+
     printf "\33[2K\r\033[1;36mBuscar: \033[0m" && read -r query
     query=$(printf "%s" "$query" | sed "s| |+|g")
     links=$(search_global "$query")
