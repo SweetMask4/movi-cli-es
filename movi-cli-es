@@ -142,7 +142,7 @@ get_video_links() {
     for m3u8 in "${video_links[@]}"; do
 
         bool=false
-        yt-dlp -s "$m3u8" > /dev/null 2>&1 || bool=true
+        yt-dlp --no-config -s "$m3u8" > /dev/null 2>&1 || bool=true
 
         if [ "$bool" = false ]; then
             video_links_check=$m3u8
