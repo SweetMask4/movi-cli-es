@@ -255,7 +255,7 @@ play() {
 	local options=("Reproducir" "Siguiente" "Descargar" "Cambiar episodio" "Salir")
 	local choice
 
-	[ "$use_external_menu" -ge 0 ] && replay "$1"
+	replay "$1"
 	while true; do
 		title=$(echo "$titleG" | cut -d '/' -f 5 | tr '-' ' ')
 		choice=$(printf '%s\n' "${options[@]}" | launcher "Reproduciendo $title")
