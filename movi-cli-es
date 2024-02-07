@@ -31,7 +31,7 @@ external_menu() {
 }
 
 rofi_menu() {
-   rofi "$1" -sort -dmenu -i -width 1500 -p "$2"
+	rofi "$1" -sort -dmenu -i -width 1500 -p "$2"
 }
 
 help_info() {
@@ -72,7 +72,7 @@ update_script() {
 launcher() {
 	[ "$use_external_menu" = "0" ] && fzf --reverse --cycle --prompt "$2"
 	[ "$use_external_menu" = "1" ] && external_menu "$1"
-  [ "$use_external_menu" = "2" ] && rofi_menu "$1"
+	[ "$use_external_menu" = "2" ] && rofi_menu "$1"
 }
 
 # comprueba si las dependencias están presentes
@@ -255,7 +255,7 @@ play() {
 	local options=("Reproducir" "Siguiente" "Descargar" "Cambiar episodio" "Salir")
 	local choice
 
- [ "$use_external_menu" -ge 0 ] &&	replay "$1"
+	[ "$use_external_menu" -ge 0 ] && replay "$1"
 	while true; do
 		title=$(echo "$titleG" | cut -d '/' -f 5 | tr '-' ' ')
 		choice=$(printf '%s\n' "${options[@]}" | launcher "Reproduciendo $title")
@@ -317,7 +317,7 @@ main() {
 	local title
 	local links
 	[ "$use_external_menu" = 0 ] && printf "Buscar: " && read -r query
-	[ "$use_external_menu" = 1 ] && query=$(echo "" | dmenu -p "Buscar: ")
+	[ "$use_external_menu" != 0 ] && query=$(echo "" | launcher "Buscar: ")
 	query=$(printf "%s" "$query" | sed "s| |+|g")
 	links=$(search_global "$query")
 	[ -n "$links" ] || die "No se encontraron resultados"
@@ -352,7 +352,7 @@ while [ $# -gt 0 ]; do
 	case "$@" in
 	-d) use_external_menu=1 menu ;;
 	-f) use_external_menu=0 menu ;;
-  -r) use_external_menu=2 menu ;;
+	-r) use_external_menu=2 menu ;;
 	-u) update_script ;;
 	-v)
 		case "$(uname -a)" in
