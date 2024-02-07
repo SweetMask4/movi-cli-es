@@ -18,289 +18,346 @@ history="$hist_dir/history"
 dir_downloads="$HOME/Downloads/movi"
 agent="Mozilla/5.0 (Windows NT 6.1; Win64; rv:109.0) Gecko/20100101 Firefox/109.0"
 
-
 case "$(uname -a)" in
-    *ndroid*) player_function="android_mpv" ;;     # Android OS (termux)
-    *MINGW* | *WSL2*) player_function="mpv.exe" ;; # Windows OS
-    *) player_function="mpv" ;;                    # Linux OS
+*ndroid*) player_function="android_mpv" ;;     # Android OS (termux)
+*MINGW* | *WSL2*) player_function="mpv.exe" ;; # Windows OS
+*) player_function="mpv" ;;                    # Linux OS
 esac
 
 [ ! -d "$hist_dir" ] && mkdir -p "$hist_dir"
 
-launcher(){
-    fzf --reverse --cycle --prompt "$1"
+external_menu() {
+	dmenu -p "$1" -l 10
+}
+
+help_info() {
+	printf "
+    Usage:
+    %s [options] [query]
+    %s [query] [options]
+    %s [options] [query] [options]
+
+    Options:
+      -d,         
+      use dmenu
+      -v, --vlc
+        Use VLC to play the video
+      -h, --help
+        Show this help message and exit
+      -U, --update
+        Update the script
+    \n" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}"
+	exit 0
+}
+
+update_script() {
+	update="$(curl -s -A "$agent" "https://raw.githubusercontent.com/pystardust/ani-cli/master/ani-cli")" || die "Connection error"
+	update="$(printf '%s\n' "$update" | diff -u "$0" -)"
+	if [ -z "$update" ]; then
+		printf "Script is up to date :)\n"
+	else
+		if printf '%s\n' "$update" | patch "$0" -; then
+			printf "Script has been updated\n"
+		else
+			die "Can't update for some reason!"
+		fi
+	fi
+	exit 0
+}
+
+launcher() {
+	[ "$use_external_menu" = "0" ] && fzf --reverse --cycle --prompt "$2"
+	[ "$use_external_menu" = "1" ] && external_menu "$1"
 }
 
 # comprueba si las dependencias están presentes
-dep_ch(){
-    for dep; do
-        command -v "$dep" >/dev/null || die "Program \"$dep\" not found. Please install it."
-    done
+dep_ch() {
+	for dep; do
+		command -v "$dep" >/dev/null || die "Program \"$dep\" not found. Please install it."
+	done
 }
 dep_ch "curl" "sed" "grep" "mpv" "fzf" "yt-dlp" "ffmpeg" || true
 
 die() {
-    printf "\33[2K\r\033[1;31m%s\033[0m\n" "$*" >&2
-    exit 1
+	printf "\33[2K\r\033[1;31m%s\033[0m\n" "$*" >&2
+	exit 1
 }
 
 downloads() {
-    local title
-    local links
-    [ ! -d "$dir_downloads" ] && mkdir "$dir_downloads"
-    [ -n "$1" ] || die "No hay enlace"
-    title=$(echo "$titleG" | cut -d '/' -f 5 | tr '-' ' ')
-    title_dir=$(echo "$title" | tr -d '0-9' | sed 's/episodio//')
-    [ ! -d title_dir ] && mkdir "$title_dir"
-    yt-dlp "$1" --no-skip-unavailable-fragments --fragment-retries infinite -N 16 -o "$dir_downloads/$title_dir/$title.mp4"
+	local title
+	local links
+	[ ! -d "$dir_downloads" ] && mkdir "$dir_downloads"
+	[ -n "$1" ] || die "No hay enlace"
+	title=$(echo "$titleG" | cut -d '/' -f 5 | tr '-' ' ')
+	title_dir=$(echo "$title" | tr -d '0-9' | sed 's/episodio//')
+	[ ! -d title_dir ] && mkdir "$title_dir"
+	yt-dlp "$1" --no-skip-unavailable-fragments --fragment-retries infinite -N 16 -o "$dir_downloads/$title_dir/$title.mp4"
 }
 
-get_links(){
-    local get_url
-    case "$1" in
-        *ver/anime*) get_url=$(printf "%s" "$1" | sed 's#^#https://monoschinos2.com/#' | sed 's#ver/anime#ver#' | tr ' ' '-') ;;
-        *ver/dorama*) get_url=$(printf "%s" "$1" | sed 's#^#https://www.doramasyt.com/#' | sed 's#ver/dorama#ver#' | tr ' ' '-') ;;
-        *anime*) get_url=$(printf "%s" "$1" | sed 's#^#https://monoschinos2.com/#' | tr ' ' '-') ;;
-        *dorama*) get_url=$(printf "%s" "$1" | sed 's#^#https://www.doramasyt.com/#' | tr ' ' '-') ;;
-        *episodio*|*/0-9/*|*serie*) get_url=$(printf "%s" "$others_base_url$1" | tr ' ' '-') ;;
-    esac
-    echo "$get_url"
+get_links() {
+	local get_url
+	case "$1" in
+	*ver/anime*) get_url=$(printf "%s" "$1" | sed 's#^#https://monoschinos2.com/#' | sed 's#ver/anime#ver#' | tr ' ' '-') ;;
+	*ver/dorama*) get_url=$(printf "%s" "$1" | sed 's#^#https://www.doramasyt.com/#' | sed 's#ver/dorama#ver#' | tr ' ' '-') ;;
+	*anime*) get_url=$(printf "%s" "$1" | sed 's#^#https://monoschinos2.com/#' | tr ' ' '-') ;;
+	*dorama*) get_url=$(printf "%s" "$1" | sed 's#^#https://www.doramasyt.com/#' | tr ' ' '-') ;;
+	*episodio* | */0-9/* | *serie*) get_url=$(printf "%s" "$others_base_url$1" | tr ' ' '-') ;;
+	esac
+	echo "$get_url"
 }
 
 get_episode() {
-    case "$1" in
-        *anime*) anime=$(curl -s -A "$agent" "$1" | grep episodio | cut -d\" -f 2 | sed 's#^300\s*##' | sed '/^$/d' | sed 's#^https://monoschinos2.com/##' | sed 's/ver\//ver\/anime\//g' | tr '-' ' ' ) ;;
-        *dorama*) dorama=$(curl -s -A "$agent" "$1" | grep episodio | cut -d\" -f 2 | sed 's#^https://www.doramasyt.com/##' | sed 's/ver\//ver\/dorama\//g'  | tr '-' ' ') ;;
-        *serie*) title=$(echo "$1" | cut -d '/' -f 5)
-            serie=$(curl -s -A "$agent" "$1" | grep episodio | grep "$title" | cut -d\" -f 2 | tr '-' ' ') ;;
-        *pelicula*|*) movie=$1 ;;
-    esac
+	case "$1" in
+	*anime*) anime=$(curl -s -A "$agent" "$1" | grep episodio | cut -d\" -f 2 | sed 's#^300\s*##' | sed '/^$/d' | sed 's#^https://monoschinos2.com/##' | sed 's/ver\//ver\/anime\//g' | tr '-' ' ') ;;
+	*dorama*) dorama=$(curl -s -A "$agent" "$1" | grep episodio | cut -d\" -f 2 | sed 's#^https://www.doramasyt.com/##' | sed 's/ver\//ver\/dorama\//g' | tr '-' ' ') ;;
+	*serie*)
+		title=$(echo "$1" | cut -d '/' -f 5)
+		serie=$(curl -s -A "$agent" "$1" | grep episodio | grep "$title" | cut -d\" -f 2 | tr '-' ' ')
+		;;
+	*pelicula* | *) movie=$1 ;;
+	esac
 
-
-    selecte=$(printf "%s" "$anime" "$dorama" "$serie" "$movie" | launcher $'\e[1;35m🎥 Selecciona una opción:\e[0m ')
-    if [[ "$selecte" == *"serie"* || "$selecte" == *"episodio"* || "$selecte" == *"ver"* || "$selecte" == *"anime"* ]]; then
-        episode_list=$(get_links "$selecte")
-        echo "$episode_list"
-    else
-        movies_list=$movie
-        echo "$movies_list"
-    fi
+	selecte=$(printf "%s" "$anime" "$dorama" "$serie" "$movie" | launcher 'Selecciona una opción: ')
+	if [[ "$selecte" == *"serie"* || "$selecte" == *"episodio"* || "$selecte" == *"ver"* || "$selecte" == *"anime"* ]]; then
+		episode_list=$(get_links "$selecte")
+		echo "$episode_list"
+	else
+		movies_list=$movie
+		echo "$movies_list"
+	fi
 }
 
-search_global(){
-    local anime_url="${anime_base_url}${spn_search_endpoint}$1"
-    results_anime=$(curl -s -A "$agent" "$anime_url" | grep "$1" | grep href | cut -d\" -f 2 | tr '-' ' ' | sed 's#^https://monoschinos2.com/##')
-    local dorama_url="${doramas_base_url}${spn_search_endpoint}$1"
-    results_dorama=$( curl -s -A "$agent" "$dorama_url" | grep "dorama/" | cut -d\" -f 2 | sed 's#^https://www.doramasyt.com/##' |  tr '-' ' ' )
-    local others_url="${others_base_url}${eng_search_endpoint}$1"
-    results_others=$(curl -s "$agent" "$others_url" | grep "$1" | grep href | cut -d\" -f 2 | tr '-' ' ' )
+search_global() {
+	local anime_url="${anime_base_url}${spn_search_endpoint}$1"
+	results_anime=$(curl -s -A "$agent" "$anime_url" | grep "$1" | grep href | cut -d\" -f 2 | tr '-' ' ' | sed 's#^https://monoschinos2.com/##')
+	local dorama_url="${doramas_base_url}${spn_search_endpoint}$1"
+	results_dorama=$(curl -s -A "$agent" "$dorama_url" | grep "dorama/" | cut -d\" -f 2 | sed 's#^https://www.doramasyt.com/##' | tr '-' ' ')
+	local others_url="${others_base_url}${eng_search_endpoint}$1"
+	results_others=$(curl -s "$agent" "$others_url" | grep "$1" | grep href | cut -d\" -f 2 | tr '-' ' ')
 
-    if [ -n "$results_anime" ]; then
-        echo "$results_anime"
-    fi
+	if [ -n "$results_anime" ]; then
+		echo "$results_anime"
+	fi
 
-    if [ -n "$results_dorama" ]; then
-        echo "$results_dorama"
-    fi
+	if [ -n "$results_dorama" ]; then
+		echo "$results_dorama"
+	fi
 
-    if [ -n "$results_others" ]; then
-        echo "$results_others"
-    fi
+	if [ -n "$results_others" ]; then
+		echo "$results_others"
+	fi
 
 }
 
 get_video_links() {
-    local video_links=()
-    local links_decoders=()
-    local excluded_sites=("filemoon" "dood" "azipcd")
+	local video_links=()
+	local links_decoders=()
+	local excluded_sites=("filemoon" "dood" "azipcd")
 
-    case "$1" in
-        *ver*|*anime*)
-            mapfile -t links_decoders < <(curl -s -A "$agent" "$1" | grep -o 'data-player="[^"]*"' | awk -F'"' '{print $2}')
+	case "$1" in
+	*ver* | *anime*)
+		mapfile -t links_decoders < <(curl -s -A "$agent" "$1" | grep -o 'data-player="[^"]*"' | awk -F'"' '{print $2}')
 
-            for link in "${links_decoders[@]}"; do
-                decoded_link=$(printf "%s\n" "$link" | base64 -d | cut -d '=' -f 2)
-                excluded=false
+		for link in "${links_decoders[@]}"; do
+			decoded_link=$(printf "%s\n" "$link" | base64 -d | cut -d '=' -f 2)
+			excluded=false
 
-                for site in "${excluded_sites[@]}"; do
-                    if [[ $decoded_link == *"$site"* ]]; then
-                        excluded=true
-                        break
-                    fi
-                done
+			for site in "${excluded_sites[@]}"; do
+				if [[ $decoded_link == *"$site"* ]]; then
+					excluded=true
+					break
+				fi
+			done
 
-                if [ "$excluded" = false ]; then
-                    video_links+=("$decoded_link")
-                fi
-            done
-            ;;
-        *)
-            mapfile -t video_links < <(curl -s -A "$agent" "$1" | grep -o 'data-video="[^"]*"' | awk '!/dood|azipcdn|pelisplay/' | awk -F'"' '{print $2}')
-            ;;
-    esac
+			if [ "$excluded" = false ]; then
+				video_links+=("$decoded_link")
+			fi
+		done
+		;;
+	*)
+		mapfile -t video_links < <(curl -s -A "$agent" "$1" | grep -o 'data-video="[^"]*"' | awk '!/dood|azipcdn|pelisplay/' | awk -F'"' '{print $2}')
+		;;
+	esac
 
-    for m3u8 in "${video_links[@]}"; do
+	for m3u8 in "${video_links[@]}"; do
 
-        bool=false
-        yt-dlp --no-config -s "$m3u8" > /dev/null 2>&1 || bool=true
+		bool=false
+		yt-dlp --no-config -s "$m3u8" >/dev/null 2>&1 || bool=true
 
-        if [ "$bool" = false ]; then
-            video_links_check=$m3u8
-            break
-        fi
-    done
+		if [ "$bool" = false ]; then
+			video_links_check=$m3u8
+			break
+		fi
+	done
 
-    echo "$video_links_check"
+	echo "$video_links_check"
 }
 
 replay() {
-    url="$1"
-    local title
-    title=$(echo "$titleG" | cut -d '/' -f 5 | tr '-' ' ')
+	url="$1"
+	local title
+	title=$(echo "$titleG" | cut -d '/' -f 5 | tr '-' ' ')
 
-    case "$player_function" in
-        mpv*) nohup "$player_function" --title="$title" "$1" >/dev/null 2>&1 & ;;
-        android_mpv) nohup am start --user 0 -a android.intent.action.VIEW -d "$url" -n is.xyz.mpv/.MPVActivity >/dev/null 2>&1 & ;;
-        android_vlc) nohup am start --user 0 -a android.intent.action.VIEW -d "$url" -n org.videolan.vlc/org.videolan.vlc.gui.video.VideoPlayerActivity -e "title" "$title" >/dev/null 2>&1 & ;;
-        flatpak_mpv) flatpak run io.mpv.Mpv --title="$title" "$1" >/dev/null 2>&1 & ;;
-        vlc*) nohup "$player_function" "$1" >/dev/null 2>&1 & ;;
-        *) nohup "$player_function" "$1" >/dev/null 2>&1 & ;;
-    esac
+	case "$player_function" in
+	mpv*) nohup "$player_function" --title="$title" "$1" >/dev/null 2>&1 & ;;
+	android_mpv) nohup am start --user 0 -a android.intent.action.VIEW -d "$url" -n is.xyz.mpv/.MPVActivity >/dev/null 2>&1 & ;;
+	android_vlc) nohup am start --user 0 -a android.intent.action.VIEW -d "$url" -n org.videolan.vlc/org.videolan.vlc.gui.video.VideoPlayerActivity -e "title" "$title" >/dev/null 2>&1 & ;;
+	flatpak_mpv) flatpak run io.mpv.Mpv --title="$title" "$1" >/dev/null 2>&1 & ;;
+	vlc*) nohup "$player_function" "$1" >/dev/null 2>&1 & ;;
+	*) nohup "$player_function" "$1" >/dev/null 2>&1 & ;;
+	esac
 
-    history save "$result_url"
-    last_viewed save "$result_url"
+	history save "$result_url"
+	last_viewed save "$result_url"
 }
 
-next(){
-    local video_links
-    local title
-    local links
+next() {
+	local video_links
+	local title
+	local links
 
-    title=$(echo "$1" | cut -d '/' -f5 | tr -d '0-9' | cut -d '-' -f 1)
-    case "$1" in
-        *monoschinos2*) next_episode=$(curl -s -A "$agent" "$1" | grep "$title" | cut -d\" -f 2 | uniq -d ) ;;
-        *cuevana3*) cuevana3_link=$(curl -s -A "$agent" "$1" | grep "$title" | grep -i Siguiente | cut -d\" -f 2)
-            next_episode=$(get_links "$cuevana3_link") ;;
-        *doramasyt*) next_episode=$(curl -s -A "$agent" "$1" | grep Siguiente | cut -d\" -f 4 ) ;;
-    esac
-    result_url=$next_episode
-    if [ -n "$result_url" ];
-    then
-        titleG="$next_episode"
-        links=$(get_video_links "$next_episode")
-        [ -n "$links" ] || die "no hay enlaces disponible"
-        replay "$links"
-    else
-        change_episode
-    fi
+	title=$(echo "$1" | cut -d '/' -f5 | tr -d '0-9' | cut -d '-' -f 1)
+	case "$1" in
+	*monoschinos2*) next_episode=$(curl -s -A "$agent" "$1" | grep "$title" | cut -d\" -f 2 | uniq -d) ;;
+	*cuevana3*)
+		cuevana3_link=$(curl -s -A "$agent" "$1" | grep "$title" | grep -i Siguiente | cut -d\" -f 2)
+		next_episode=$(get_links "$cuevana3_link")
+		;;
+	*doramasyt*) next_episode=$(curl -s -A "$agent" "$1" | grep Siguiente | cut -d\" -f 4) ;;
+	esac
+	result_url=$next_episode
+	if [ -n "$result_url" ]; then
+		titleG="$next_episode"
+		links=$(get_video_links "$next_episode")
+		[ -n "$links" ] || die "no hay enlaces disponible"
+		replay "$links"
+	else
+		change_episode
+	fi
 }
 
-change_episode(){
-    local links
+change_episode() {
+	local links
 
-    result_url=$(get_episode "$get_url")
-    links=$(get_video_links "$result_url")
-    titleG=$result_url
-    replay "$links"
+	result_url=$(get_episode "$get_url")
+	links=$(get_video_links "$result_url")
+	titleG=$result_url
+	replay "$links"
 
 }
 
 play() {
-    local options=("Siguiente" "Reproducir" "Descargar" "Cambiar episodio" "Salir")
-    local choice
+	local options=("Reproducir" "Siguiente" "Descargar" "Cambiar episodio" "Salir")
+	local choice
 
-    replay "$1"
-    while true; do
-        title=$(echo "$titleG" | cut -d '/' -f 5 | tr '-' ' ')
-        choice=$(printf '%s\n' "${options[@]}" | launcher $'\e[1;33m🎬 Reproduciendo '"$title"$' :\e[0m ')
-        case "$choice" in
-            'Reproducir') replay "$1" ;;
-            'Siguiente') next "$titleG" ;;
-            'Descargar') downloads "$1" ;;
-            'Cambiar episodio') change_episode ;;
-            'Salir') exit 0 ;;
-        esac
-    done
+ [ "$use_external_menu" -ge 0 ] &&	replay "$1"
+	while true; do
+		title=$(echo "$titleG" | cut -d '/' -f 5 | tr '-' ' ')
+		choice=$(printf '%s\n' "${options[@]}" | launcher "Reproduciendo $title")
+		case "$choice" in
+		'Reproducir') replay "$1" ;;
+		'Siguiente') next "$titleG" ;;
+		'Descargar') downloads "$1" ;;
+		'Cambiar episodio') change_episode ;;
+		'Salir') exit 0 ;;
+		esac
+	done
 }
 
-last_viewed(){
-    local links
+last_viewed() {
+	local links
 
-    case "$1" in
-        'save')
-            echo "$2" > "$histfile" ;;
-        'show') if [ -f "$histfile" ];
-            then
-                result_url=$(cat "$histfile")
-                titleG=$(echo "$result_url" | cut -d '/' -f 5 | tr '-' ' ')
-                links=$(get_video_links "$result_url")
-                play "$links"
-            else
-                die "no hay ultima vez"
-            fi
-    esac
+	case "$1" in
+	'save')
+		echo "$2" >"$histfile"
+		;;
+	'show') if [ -f "$histfile" ]; then
+		result_url=$(cat "$histfile")
+		titleG=$(echo "$result_url" | cut -d '/' -f 5 | tr '-' ' ')
+		links=$(get_video_links "$result_url")
+		play "$links"
+	else
+		die "no hay ultima vez"
+	fi ;;
+	esac
 }
 
-history(){
-    local animes
-    local doramas
-    local others
-    local choice
+history() {
+	local animes
+	local doramas
+	local others
+	local choice
 
-    case "$1" in
-        'save') if ! grep -Fxq "$2" "$history";
-            then
-                echo "$2" >> "$history"
-            fi ;;
-        'show') if [ -f "$history" ];
-            then
-                show_history=$(cat "$history")
-                animes=$( echo "$show_history" | grep "monoschinos2" |  cut -d\" -f 2 | sed 's#^300\s*##' | sed '/^$/d' | sed 's#^https://monoschinos2.com/##' | sed 's/ver\//ver\/anime\//g' | tr '-' ' ')
-                others=$(echo "$show_history" | grep "cuevana3" | awk -F '/' '{print "/" $4 "/" $5 }' | tr '-' ' ')
-                doramas=$(echo "$show_history" | grep "doramasyt" | cut -d\" -f 2 | sed 's#^https://www.doramasyt.com/##' | sed 's/ver\//ver\/dorama\//g'  | tr '-' ' ' )
-                choice=$(printf '%s\n' "$animes" "$doramas" "$others" | launcher $'\e[1;35m🔍 Selecciona una opción:\e[0m ')
-                result_url=$(get_links "$choice")
-                links=$(get_video_links "$result_url")
-                [ -n "$links" ] || die "no hay enlaces disponible"
-                titleG=$result_url
-                play "$links"
-            fi ;;
-    esac
+	case "$1" in
+	'save') if ! grep -Fxq "$2" "$history"; then
+		echo "$2" >>"$history"
+	fi ;;
+	'show') if [ -f "$history" ]; then
+		show_history=$(cat "$history")
+		animes=$(echo "$show_history" | grep "monoschinos2" | cut -d\" -f 2 | sed 's#^300\s*##' | sed '/^$/d' | sed 's#^https://monoschinos2.com/##' | sed 's/ver\//ver\/anime\//g' | tr '-' ' ')
+		others=$(echo "$show_history" | grep "cuevana3" | awk -F '/' '{print "/" $4 "/" $5 }' | tr '-' ' ')
+		doramas=$(echo "$show_history" | grep "doramasyt" | cut -d\" -f 2 | sed 's#^https://www.doramasyt.com/##' | sed 's/ver\//ver\/dorama\//g' | tr '-' ' ')
+		choice=$(printf '%s\n' "$animes" "$doramas" "$others" | launcher $'\e[1;35m🔍 Selecciona una opción:\e[0m ')
+		result_url=$(get_links "$choice")
+		links=$(get_video_links "$result_url")
+		[ -n "$links" ] || die "no hay enlaces disponible"
+		titleG=$result_url
+		play "$links"
+	fi ;;
+	esac
 }
 
 main() {
-    local choice
-    local title
-    local links
-
-    printf "\33[2K\r\033[1;36mBuscar: \033[0m" && read -r query
-    query=$(printf "%s" "$query" | sed "s| |+|g")
-    links=$(search_global "$query")
-    [ -n "$links" ] || die "No se encontraron resultados"
-    choice=$(printf "%s" "$links" | launcher $'\e[1;33m🌟 Elige una película, serie o dorama:\e[0m ')
-    get_url=$(get_links "$choice")
-    title=$(echo "$get_url" | cut -d '/' -f5 | tr '-' ' ')
-    result_url=$(get_episode "$get_url")
-    [ -n "$result_url" ] || die "No hay episodios disponibles"
-    links=$(get_video_links "$result_url")
-    [ -n "$links" ] || die "No hay enlaces disponibles"
-    titleG="$result_url"
-    play "$links"
+	local choice
+	local title
+	local links
+	[ "$use_external_menu" = 0 ] && printf "Buscar: " && read -r query
+	[ "$use_external_menu" = 1 ] && query=$(echo "" | dmenu -p "Buscar: ")
+	query=$(printf "%s" "$query" | sed "s| |+|g")
+	links=$(search_global "$query")
+	[ -n "$links" ] || die "No se encontraron resultados"
+	choice=$(printf "%s" "$links" | launcher 'Elige una película, serie o dorama: ')
+	get_url=$(get_links "$choice")
+	title=$(echo "$get_url" | cut -d '/' -f5 | tr '-' ' ')
+	result_url=$(get_episode "$get_url")
+	[ -n "$result_url" ] || die "No hay episodios disponibles"
+	links=$(get_video_links "$result_url")
+	[ -n "$links" ] || die "No hay enlaces disponibles"
+	titleG="$result_url"
+	play "$links"
 }
 
 menu() {
-    local options=("Buscar" "Último visto" "Historial" "Salir")
-    local choice
+	local options=("Buscar" "Último visto" "Historial" "Salir")
+	local choice
 
-    choice=$(printf '%s\n' "${options[@]}" | launcher $'\e[1;35m🔍 Selecciona una opción:\e[0m ')
-    while true; do
-        case "$choice" in
-            "Buscar") main ;;
-            "Último visto") last_viewed show ;;
-            "Historial") history show ;;
-            "Salir") break ;;
-            *) die "Opción inválida. Inténtalo de nuevo." ;;
-        esac
-    done
+	choice=$(printf '%s\n' "${options[@]}" | launcher 'Selecciona una opción: ')
+	while true; do
+		case "$choice" in
+		"Buscar") main ;;
+		"Último visto") last_viewed show ;;
+		"Historial") history show ;;
+		"Salir") break ;;
+		*) die "Opción inválida. Inténtalo de nuevo." ;;
+		esac
+	done
 }
-menu
+
+while [ $# -gt 0 ]; do
+	case "$@" in
+	-d) use_external_menu=1 menu ;;
+	-f) use_external_menu=0 menu ;;
+	-u) update_script ;;
+	-v)
+		case "$(uname -a)" in
+		*ndroid*) player_function="android_vlc" ;;
+		MINGW* | *WSL2*) player_function="vlc.exe" ;;
+		*ish*) player_function="iSH" ;;
+		*) player_function="vlc" ;;
+		esac
+		;;
+	-h) help_info ;;
+	*) help_info ;;
+	esac
+	shift
+done
