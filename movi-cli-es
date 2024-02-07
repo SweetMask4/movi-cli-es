@@ -42,16 +42,16 @@ help_info() {
       use dmenu
       -v, --vlc
         Use VLC to play the video
-      -h, --help
+      -h,
         Show this help message and exit
-      -U, --update
+      -u,
         Update the script
     \n" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}" "${0##*/}"
 	exit 0
 }
 
 update_script() {
-	update="$(curl -s -A "$agent" "https://raw.githubusercontent.com/pystardust/ani-cli/master/ani-cli")" || die "Connection error"
+	update="$(curl -s -A "$agent" "https://raw.githubusercontent.com/SweetMask4/movi-cli-es/main/movi-cli-es")" || die "Connection error"
 	update="$(printf '%s\n' "$update" | diff -u "$0" -)"
 	if [ -z "$update" ]; then
 		printf "Script is up to date :)\n"
