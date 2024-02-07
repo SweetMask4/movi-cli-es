@@ -30,6 +30,10 @@ external_menu() {
 	dmenu -p "$1" -l 10
 }
 
+rofi_menu() {
+   rofi "$1" -sort -dmenu -i -width 1500 -p "$2"
+}
+
 help_info() {
 	printf "
     Usage:
@@ -68,6 +72,7 @@ update_script() {
 launcher() {
 	[ "$use_external_menu" = "0" ] && fzf --reverse --cycle --prompt "$2"
 	[ "$use_external_menu" = "1" ] && external_menu "$1"
+  [ "$use_external_menu" = "2" ] && rofi_menu "$1"
 }
 
 # comprueba si las dependencias están presentes
@@ -347,6 +352,7 @@ while [ $# -gt 0 ]; do
 	case "$@" in
 	-d) use_external_menu=1 menu ;;
 	-f) use_external_menu=0 menu ;;
+  -r) use_external_menu=2 menu ;;
 	-u) update_script ;;
 	-v)
 		case "$(uname -a)" in
