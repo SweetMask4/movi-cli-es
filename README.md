@@ -11,7 +11,7 @@ Instalar dependencias
 Para archlinux y derivadas
 
 ```sh
-sudo pacman -S ffmpeg curl yt-dpl mpv --needed
+sudo pacman -S ffmpeg curl yt-dpl mpv fzf --needed
 ```
 
 Para debian y ubuntu
@@ -19,7 +19,7 @@ Para debian y ubuntu
 paso 1
 
 ```sh
-sudo apt-get install ffmpeg curl mpv python-pip
+sudo apt-get install ffmpeg curl mpv fzf python-pip
 ```
 
 paso 2
@@ -33,7 +33,7 @@ Para fedora
 paso 1
 
 ```sh
-sudo dnf install ffmpeg curl mpv python-pip
+sudo dnf install ffmpeg curl mpv fzf python-pip
 ```
 
 paso 2
@@ -42,6 +42,11 @@ paso 2
 python -m pip install -U yt-dlp
 ```
 
+dependencias opcionales 
+[dmenu](https://github.com/SweetMask4/dmenu) 
+rofi
+
+instalar scripts
 ```sh
 git clone "https://github.com/SweetMask4/movi-cli-es.git"
 sudo cp movi-cli-es/movi-cli-es /usr/local/bin
