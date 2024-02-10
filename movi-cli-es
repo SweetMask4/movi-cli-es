@@ -125,7 +125,7 @@ get_episode() {
 		;;
 	*serie*)
 		title=$(echo "$1" | cut -d '/' -f 5)
-		serie=$(curl -s -A "$agent" "$1" |  grep -E 'capitulo|episodio' | grep -o '<a [^>]*href="[^"]*"' | grep -o 'href="[^"]*"' | cut -d'"' -f2 | tr '-' ' ')
+		serie=$(curl -s -A "$agent" "$1" |  grep -E 'capitulo|episodio' | grep "$title" | grep -o '<a [^>]*href="[^"]*"' | grep -o 'href="[^"]*"' | cut -d'"' -f2 | tr '-' ' ')
 		;;
 	*pelicula*)
 		movie=$1
