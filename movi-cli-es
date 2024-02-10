@@ -7,11 +7,14 @@
 
 # Dependencias requeridas: mpv, yt-dlp, fzf, curl, ffmpeg
 
-others_base_url="https://cuevana3.ch"
-anime_base_url="https://monoschinos2.com"
-doramas_base_url="https://www.doramasyt.com"
-spn_search_endpoint="/buscar?q="
-eng_search_endpoint="/search.html?keyword="
+cuevana3_base_url="https://cuevana3.ch"
+monoschinos2_base_url="https://monoschinos2.com"
+doramasyt_base_url="https://www.doramasyt.com"
+pelisplushd_base_url="https://www5.pelisplushd.pe"
+monoschinos2_search_endpoint="/buscar?q="
+pelisplushd_search_endpoint="/search/"
+cuevana3_search_endpoint="/search.html?keyword="
+doramasyt_search_endpoint="/buscar?q="
 hist_dir="$HOME/.local/state/movi-cli-es"
 histfile="$hist_dir/movi-hsts"
 history="$hist_dir/history"
@@ -37,13 +40,13 @@ rofi_menu() {
 help_info() {
 	printf "
     Usage:
-    %s [options] [query]
-    %s [query] [options]
-    %s [options] [query] [options]
+    %s [options]     
 
     Options:
       -d,         
       use dmenu
+      -r,
+      use rofi
       -v, --vlc
         Use VLC to play the video
       -h,
@@ -96,7 +99,7 @@ downloads() {
 	title=$(echo "$titleG" | cut -d '/' -f 5 | tr '-' ' ')
 	title_dir=$(echo "$title" | tr -d '0-9' | sed 's/episodio//')
 	[ ! -d title_dir ] && mkdir "$title_dir"
-	yt-dlp "$1" --no-skip-unavailable-fragments --fragment-retries infinite -N 16 -o "$dir_downloads/$title_dir/$title.mp4"
+	yt-dlp --no-config -f b "$1" --no-skip-unavailable-fragments --fragment-retries infinite -N 16 -o "$dir_downloads/$title_dir/$title.mp4"
 }
 
 get_links() {
@@ -106,24 +109,31 @@ get_links() {
 	*ver/dorama*) get_url=$(printf "%s" "$1" | sed 's#^#https://www.doramasyt.com/#' | sed 's#ver/dorama#ver#' | tr ' ' '-') ;;
 	*anime*) get_url=$(printf "%s" "$1" | sed 's#^#https://monoschinos2.com/#' | tr ' ' '-') ;;
 	*dorama*) get_url=$(printf "%s" "$1" | sed 's#^#https://www.doramasyt.com/#' | tr ' ' '-') ;;
-	*episodio* | */0-9/* | *serie*) get_url=$(printf "%s" "$others_base_url$1" | tr ' ' '-') ;;
+	*pelisplushd*|*capitulo*) get_url=$(printf "%s" "${pelisplushd_base_url}${1//pelisplushd/}" | tr ' ' '-') ;;
+	*episodio* | */0-9/* | *serie*) get_url=$(printf "%s" "$cuevana3_base_url$1" | tr ' ' '-') ;;
 	esac
 	echo "$get_url"
 }
 
 get_episode() {
 	case "$1" in
-	*anime*) anime=$(curl -s -A "$agent" "$1" | grep episodio | cut -d\" -f 2 | sed 's#^300\s*##' | sed '/^$/d' | sed 's#^https://monoschinos2.com/##' | sed 's/ver\//ver\/anime\//g' | tr '-' ' ') ;;
-	*dorama*) dorama=$(curl -s -A "$agent" "$1" | grep episodio | cut -d\" -f 2 | sed 's#^https://www.doramasyt.com/##' | sed 's/ver\//ver\/dorama\//g' | tr '-' ' ') ;;
+	*anime*)
+		anime=$(curl -s -A "$agent" "$1" | grep episodio | cut -d\" -f 2 | sed 's#^300\s*##' | sed '/^$/d' | sed 's#^https://monoschinos2.com/##' | sed 's/ver\//ver\/anime\//g' | tr '-' ' ')
+		;;
+	*dorama*)
+		dorama=$(curl -s -A "$agent" "$1" | grep episodio | cut -d\" -f 2 | sed 's#^https://www.doramasyt.com/##' | sed 's/ver\//ver\/dorama\//g' | tr '-' ' ')
+		;;
 	*serie*)
 		title=$(echo "$1" | cut -d '/' -f 5)
-		serie=$(curl -s -A "$agent" "$1" | grep episodio | grep "$title" | cut -d\" -f 2 | tr '-' ' ')
+		serie=$(curl -s -A "$agent" "$1" |  grep -E 'capitulo|episodio' | grep -o '<a [^>]*href="[^"]*"' | grep -o 'href="[^"]*"' | cut -d'"' -f2 | tr '-' ' ')
 		;;
-	*pelicula* | *) movie=$1 ;;
+	*pelicula*)
+		movie=$1
+		;;
 	esac
 
 	selecte=$(printf "%s" "$anime" "$dorama" "$serie" "$movie" | launcher 'Selecciona una opción: ')
-	if [[ "$selecte" == *"serie"* || "$selecte" == *"episodio"* || "$selecte" == *"ver"* || "$selecte" == *"anime"* ]]; then
+	if [[ "$selecte" == *"serie"* || "$selecte" == *"capitulo"* || "$selecte" == *"episodio"* || "$selecte" == *"ver"* || "$selecte" == *"anime"* ]]; then
 		episode_list=$(get_links "$selecte")
 		echo "$episode_list"
 	else
@@ -133,25 +143,28 @@ get_episode() {
 }
 
 search_global() {
-	local anime_url="${anime_base_url}${spn_search_endpoint}$1"
-	results_anime=$(curl -s -A "$agent" "$anime_url" | grep "$1" | grep href | cut -d\" -f 2 | tr '-' ' ' | sed 's#^https://monoschinos2.com/##')
-	local dorama_url="${doramas_base_url}${spn_search_endpoint}$1"
-	results_dorama=$(curl -s -A "$agent" "$dorama_url" | grep "dorama/" | cut -d\" -f 2 | sed 's#^https://www.doramasyt.com/##' | tr '-' ' ')
-	local others_url="${others_base_url}${eng_search_endpoint}$1"
-	results_others=$(curl -s "$agent" "$others_url" | grep "$1" | grep href | cut -d\" -f 2 | tr '-' ' ')
+	local anime_url="${monoschinos2_base_url}${monoschinos2_search_endpoint}$1"
+	results_monoschinos2=$(curl -s -A "$agent" "$anime_url" | grep "$1" | grep href | cut -d\" -f 2 | tr '-' ' ' | sed 's#^https://monoschinos2.com/##')
+	results_doramayt=$(curl -s -A "$agent" "${doramasyt_base_url}${doramasyt_search_endpoint}$1" | grep "dorama/" | cut -d\" -f 2 | sed 's#^https://www.doramasyt.com/##' | tr '-' ' ')
+	results_cuevana3=$(curl -s -A "$agent" "${cuevana3_base_url}${cuevana3_search_endpoint}$1" | grep "$1" | grep href | cut -d\" -f 2 | tr '-' ' ')
 
-	if [ -n "$results_anime" ]; then
-		echo "$results_anime"
+	results_pelisplushd=$(curl -s -A "$agent" "${pelisplushd_base_url}${pelisplushd_search_endpoint}$1" | grep "$1" | grep -o '<a [^>]*>' | grep -o 'href="[^"]*"' | sed 's/href="\(.*\)"/pelisplushd\1/g')
+
+	if [ -n "$results_monoschinos2" ]; then
+		echo "$results_monoschinos2"
 	fi
 
-	if [ -n "$results_dorama" ]; then
-		echo "$results_dorama"
+	if [ -n "$results_doramayt" ]; then
+		echo "$results_doramayt"
 	fi
 
-	if [ -n "$results_others" ]; then
-		echo "$results_others"
+	if [ -n "$results_cuevana3" ]; then
+		echo "$results_cuevana3"
 	fi
 
+	if [ -n "$results_pelisplushd" ]; then
+		echo "$results_pelisplushd"
+	fi
 }
 
 get_video_links() {
